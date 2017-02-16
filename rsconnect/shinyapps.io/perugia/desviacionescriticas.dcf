@@ -1,0 +1,11 @@
+name: desviacionescriticas
+title: DesviacionesCriticas
+account: perugia
+server: shinyapps.io
+appId: 157364
+bundleId: 714330
+url: https://perugia.shinyapps.io/desviacionescriticas/
+when: 1487274695.8698
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: CORTE Y PREPARA.csv|CORTE.csv|FAMILIA.csv|FORRADOS.csv|PLANTA.csv|RAYADO Y RESACA.csv|script.R|tiempos-asignacion.csv|tiempos.R
