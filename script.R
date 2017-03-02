@@ -2,14 +2,24 @@
 #se debe separar en archivos por departamento y dejar la tabla con el formato
 #estilo - familia - puesto1 - puesto2 - puestox
 
-preparar <- function(){
+preparar <- function(exportar = FALSE){
      require(dplyr)
      require(tidyr)
      
      #el formato inicial es
-     #depto - estilo - familia - funcion - tiempo
+     #limpiar el formato, actual (LINEA, VCESTIL, PARES, FAMPESP, FAMMONT, DEPTO, FUNCION, TIEMPO,
+     #PERSONAS, META)
 
-     tiempos.raw <- read.csv("tiempos-asignacion.csv", stringsAsFactors = TRUE)
+     tiempos.raw <- read.csv("FUNCIONES_ESTILOS_HABILITADOS.csv", stringsAsFactors = TRUE)
+     
+     deptos.usar <- c("CORTE","CORTE Y PREPARA", "FAMILIA", "FORRADOS", "PLANTA", "RAYADO Y RESACA",
+                      "SUELA")
+     
+     tiempos.raw <- tiempos.raw%>%
+          select(DEPTO, VCESTIL, FAMPESP, FUNCION, TIEMPO)%>%
+          filter(DEPTO %in% deptos.usar)%>%
+          filter(TIEMPO > 0)
+     
      
      #agrupar pespuntadores y preliminares
      tiempos.raw$FUNCION <- ifelse(grepl("PESPUNTADOR", 
@@ -52,12 +62,15 @@ preparar <- function(){
      tiempos.raw <- tiempos.raw[!grepl("COMODIN+",  tiempos.raw$FUNCION),]
      names(tiempos.raw) <- make.names(names(tiempos.raw))
      tiempos <<- tiempos.raw%>%
-          select(DEPTO, "ESTILO" = VCESTIL, FAMPESP, FUNCION, "TIEMPO" = Promedio.de.TIEMPO)
+          select(DEPTO, "ESTILO" = VCESTIL, FAMPESP, FUNCION, "TIEMPO" = TIEMPO)
+     
+     
      #completar con cero las funciones que existen en cada depto y el estilo no las tiene
      #primero se debe agregar todos los estilos a todas los deptos
      
      estilos.fam <<- unique(tiempos[tiempos$DEPTO == "FAMILIA",2:3])
      
+     #hacer esto cuando se seleccione el depto
      for(i in unique(tiempos$DEPTO)){
           temp <- tiempos%>%
                     filter(DEPTO == i)%>%
@@ -65,8 +78,10 @@ preparar <- function(){
                     group_by(ESTILO, FUNCION)%>%
                     summarise("TIEMPO" = sum(TIEMPO))%>%
                     spread(FUNCION,TIEMPO, drop = FALSE, fill = 0)
-          temp1 <<- merge(estilos.fam, temp, by = "ESTILO")
-          write.csv(temp1, paste0(i, ".csv"), row.names = F)
+          result <<- merge(estilos.fam, temp, by = "ESTILO")
+          
+          if (exportar){
+               write.csv(result, paste0(i, ".csv"), row.names = F)
+          }
      }
-     
 }
