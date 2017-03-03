@@ -4,7 +4,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(plotly)
-library(cluster)
+
 
 
 shinyServer(function(input, output, session) {
@@ -33,7 +33,8 @@ shinyServer(function(input, output, session) {
           
           #limpiar el formato, actual (LINEA, VCESTIL, PARES, FAMPESP, FAMMONT, DEPTO, FUNCION, TIEMPO,
           #PERSONAS, META)
-          deptos.usar <- c("CORTE","CORTE Y PREPARA", "FAMILIA", "FORRADOS", "PLANTA", "RAYADO Y RESACA",
+          deptos.usar <- c("CORTE","CORTE Y PREPARA", "ENSAMBLES", "FAMILIA", "FORRADOS", 
+                           "PLANTA", "RAYADO Y RESACA",
                            "SUELA")
           
           tiempos.raw <- tiempos.raw%>%
@@ -438,17 +439,18 @@ shinyServer(function(input, output, session) {
           deptos <- lectura.inicial()
           if(is.null(deptos)) return(NULL)
           un.deptos <- unique(deptos$DEPTO)%>%sort()
-          selectInput("cb.deptos.flujo", "Selecciona departamentos para revisar flujo", as.list(un.deptos),
+          selectInput("cb.deptos.flujo", "Selecciona departamentos para revisar", as.list(un.deptos),
                       multiple = T, selected = un.deptos)
      })
      
      # Drop-down de estilos para flujo
      output$flujo.estilo <- renderUI({
-          datos <- reporte.flujo()
+          datos <- reporte.final()
           if(is.null(datos)) return(NULL)
+          
           estilos <- unique(datos$ESTILO)%>%sort()
-          selectInput("cb.estilos.flujo", "Selecciona un estilo para revisar su flujo", as.list(estilos),
-                      multiple = F)
+          selectInput("cb.estilos.flujo", "Selecciona uno o mas estilos", as.list(estilos),
+                      multiple = T)
      })
      
      reporte.flujo <- reactive({
@@ -464,12 +466,14 @@ shinyServer(function(input, output, session) {
           if (is.null(input$fams.selected)) return(NULL)
           
           
-          # #convertir los tiempos en personas para 1000 pares al dia
-          # efic <- input$eficiencia/100
-          # hrs <- input$horas.trabajo
-          # datos <-  datos%>%
-          #      mutate("PERSONAS" = round(TIEMPO*1000/(efic*hrs*3600)),2)%>%
-          #      select(DEPTO, ESTILO, LINEA, FUNCION, "TIEMPO" = PERSONAS)
+          #convertir los tiempos en personas para 1000 pares al dia
+          if (input$personas){
+               efic <- input$eficiencia/100
+               hrs <- input$horas.trabajo
+               datos <-  datos%>%
+                    mutate("TIEMPO" = ceiling(TIEMPO*1000/(efic*hrs*3600)))%>%
+                    select(DEPTO, ESTILO, LINEA, FUNCION, TIEMPO)
+          }
           
           #lineas seleccionadas
           datos <- datos%>%
@@ -533,45 +537,77 @@ shinyServer(function(input, output, session) {
           #plantilla basica por promedio
           plantilla <- bd%>%
                group_by(LINEA, DEPTO, FUNCION)%>%
-               summarise("TIEMPO.PROMEDIO" = ceiling(mean(TIEMPO)))
+               summarise("PLANTILLA" = ceiling(mean(TIEMPO)))
           
           #diferencias por estilo vs plantilla
           completa <<- merge(bd, plantilla , by = c("LINEA","DEPTO","FUNCION"))%>%
-               mutate("META" = ifelse(TIEMPO == 0,0, ceiling((TIEMPO.PROMEDIO/TIEMPO)*100)))
+               mutate("META" = ifelse(TIEMPO == 0,ceiling((PLANTILLA/3)*100), ceiling((PLANTILLA/TIEMPO)*100)))
           
           return(completa)
           
           
      })  
      
-     output$plot.flujo <- renderPlotly({
-          tabla.plot <- reporte.flujo()
-          if(is.null(tabla.plot)) return(NULL)
-          
-          tabla.plot <- tabla.plot%>%
-               filter(ESTILO == input$cb.estilos.flujo)%>%
-               arrange(DEPTO, FUNCION, META)%>%
-               mutate("DEPTOFUNC" = paste(DEPTO,"/",FUNCION))
-          
-          ggplot(tabla.plot, aes(DEPTOFUNC, META, colour = DEPTO, group = 1)) + 
-               geom_point(col = "navy") + geom_line() + 
-               scale_x_discrete(labels = substr(tabla.plot$FUNCION,1,3)) + 
-               geom_hline(yintercept = min(tabla.plot[tabla.plot$META >0 ,]$META), col = "red") 
-          
-     })
+
+     observeEvent(input$cb.estilos.flujo, {
+
+          output$plot.flujo <- renderPlotly({
+               
+               tabla.plot <- reporte.flujo()
+               if(is.null(tabla.plot)) return(NULL)
+               
+               estilo = input$cb.estilos.flujo
+               
+               if (length(estilo) == 0) return(NULL)
+               
+               #acumular meta de los estilos seleccionados si es mas de uno
+               if (input$acumular){
+                    cuantos <- length(input$cb.estilos.flujo)
+                    tabla.plot <- tabla.plot%>%
+                         filter(ESTILO == input$cb.estilos.flujo | ESTILO == "AGRUPADO")%>%
+                         mutate("Meta.Parcial" = META/cuantos)%>%
+                         group_by(DEPTO, FUNCION)%>%
+                         summarise("Pct.meta" = sum(Meta.Parcial))%>%
+                         mutate("ESTILO" = "AGRUPADO")
+               } else {
+                    tabla.plot <- tabla.plot%>%
+                         filter(ESTILO == input$cb.estilos.flujo | ESTILO == "AGRUPADO")%>%
+                         mutate("Pct.meta" = META)
+               }
+                    
+               plot.final <- tabla.plot%>%
+                    arrange(DEPTO, FUNCION, Pct.meta)%>%
+                    mutate("DEPTOFUNC" = paste(DEPTO,"/",FUNCION))  
+               
+               intercepts <- plot.final%>%
+                    group_by(ESTILO, DEPTO)%>%
+                    filter(Pct.meta > 0)%>%
+                    summarise("Meta.real" = min(Pct.meta))
      
+               ggplot(plot.final, aes(DEPTOFUNC, Pct.meta, colour = ESTILO, group = 1)) + 
+                    geom_point(size = 2) + geom_line() + 
+                    scale_x_discrete(labels = substr(tabla.plot$FUNCION,1,3)) +
+                    geom_hline(data = intercepts, aes(yintercept =  Meta.real, colour = DEPTO)) + 
+                    coord_cartesian(ylim = c(0,200))
+          })
+     })
      
      #flujo continuo por estilo
      output$tabla_flujo <- DT::renderDataTable({
           tabla.raw <- reporte.flujo()
           if(is.null(tabla.raw)) return(NULL)
           
+          if (input$personas) {
+          #cambiar unidad de tiempo por
+               tabla.raw <- tabla.raw%>%
+                    select(LINEA, DEPTO, FUNCION, ESTILO, "PERSONAS" = TIEMPO, PLANTILLA, META)
+          }
+          
           DT::datatable(tabla.raw, options = list(pageLength = 25))
      })
      
      #aqui esta todo lo que requiere pares por linea - observa el boton agregar y actualiza
      observeEvent(input$agregar, {
-          
           
           #calcula con los pares por linea - si no, no calcula
           output$inc.facturacion <- renderPrint({

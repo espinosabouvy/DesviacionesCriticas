@@ -4,7 +4,8 @@ library(plotly)
 
 shinyUI(fluidPage(
      
-     titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
+     titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - TU FABRICA"),
+     #titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
      sidebarLayout(
           sidebarPanel(
                fileInput("browse", "Selecciona archivo CSV que obtienes de Tiempos/Reportes/Plantilla basica/
@@ -85,6 +86,8 @@ shinyUI(fluidPage(
                     tabPanel("Analisis de flujo continuo",
                              column(4, uiOutput("flujo.deptos")),
                              column(2, uiOutput("flujo.estilo")),
+                             column(4, checkboxInput("acumular", 
+                                                     "Acumular estilos", FALSE)),
                              column(12, plotlyOutput("plot.flujo")),
                              column(12,DT::dataTableOutput("tabla_flujo", width = 600))
                              ),
