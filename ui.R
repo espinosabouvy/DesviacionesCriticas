@@ -4,7 +4,8 @@ library(plotly)
 
 shinyUI(fluidPage(
      
-     titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
+     titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - TU FABRICA"),
+     #titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
      sidebarLayout(
           sidebarPanel(
                fileInput("browse", "Selecciona archivo CSV que obtienes de Tiempos/Reportes/Plantilla basica/
@@ -83,10 +84,16 @@ shinyUI(fluidPage(
                              DT::dataTableOutput("desviaciones", width = 200)
                              ),
                     tabPanel("Analisis de flujo continuo",
-                             column(4, uiOutput("flujo.deptos")),
+                             column(3, uiOutput("flujo.deptos")),
+                             column(3, uiOutput("flujo.linea")),
                              column(2, uiOutput("flujo.estilo")),
+                             column(2, h4("Cumplimiento esperado"),
+                                    verbatimTextOutput("cumpl.meta")),
+                             column(2, h4("Eficiencia esperada"),
+                                    verbatimTextOutput("ef.esperada")),
                              column(12, plotlyOutput("plot.flujo")),
-                             column(12,DT::dataTableOutput("tabla_flujo", width = 600))
+                             column(12,DT::dataTableOutput("tabla.plot")),
+                             column(12,DT::dataTableOutput("balanceo"))
                              ),
                     tabPanel("Calculos",
                              h2("Definicion de calculos"),
