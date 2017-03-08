@@ -58,6 +58,8 @@ preparar <- function(exportar = FALSE){
      tiempos.raw$FUNCION <- ifelse(grepl("REBAJADOR PIEL", 
                                          tiempos.raw$FUNCION),"REBAJADOR",
                                    paste(tiempos.raw$FUNCION))
+     tiempos.raw[tiempos.raw$FUNCION == "FORRAR" & tiempos.raw$DEPTO == "PLANTA",]$FUNCION <- "RIBETEAR"
+     
      #quitar comodines
      tiempos.raw <- tiempos.raw[!grepl("COMODIN+",  tiempos.raw$FUNCION),]
      names(tiempos.raw) <- make.names(names(tiempos.raw))
