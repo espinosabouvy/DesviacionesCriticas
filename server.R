@@ -33,13 +33,9 @@ shinyServer(function(input, output, session) {
           
           #limpiar el formato, actual (LINEA, VCESTIL, PARES, FAMPESP, FAMMONT, DEPTO, FUNCION, TIEMPO,
           #PERSONAS, META)
-<<<<<<< HEAD
-          deptos.usar <- c("CORTE","CORTE Y PREPARA", "ENSAMBLES", "FAMILIA", 
-                           "FORRADOS", "PLANTA", "RAYADO Y RESACA",
-=======
+
           deptos.usar <- c("CORTE","CORTE Y PREPARA", "ENSAMBLES", "FAMILIA", "FORRADOS", 
                            "PLANTA", "RAYADO Y RESACA",
->>>>>>> b02a3f7f8ba935fe5a3aeb94d3f7fadd1c80728b
                            "SUELA")
           
           tiempos.raw <- tiempos.raw%>%
