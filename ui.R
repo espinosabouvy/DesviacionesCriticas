@@ -8,6 +8,12 @@ shinyUI(fluidPage(
      #titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
      sidebarLayout(
           sidebarPanel(
+               #fijar el ancho del left sidebar
+               # tags$head(
+               # tags$style(type="text/css", "select { max-width: 140px; }"),
+               # tags$style(type="text/css", ".span4 { max-width: 190px; }"),
+               # tags$style(type="text/css", ".well { max-width: 300px; }")
+               # ),
                fileInput("browse", "Selecciona archivo CSV que obtienes de Tiempos/Reportes/Plantilla basica/
                          Estilos habilitados",
                          accept = c(
@@ -37,7 +43,7 @@ shinyUI(fluidPage(
                #    la suscripcion en Apps/Comprar aplicaciones o enviarnos un correo en la cuenta 
                #    luis@magro.com.mx para ayudarte"),
                h5("Si tienes alguna duda de como funciona esta app, puedes enviarnos un correo a 
-                  luis@magro.com.mx para ayudarte. Vrs-2.0"),
+                  luis@magro.com.mx para ayudarte. Vrs-2.5"),
                tabsetPanel(
                     tabPanel("Datos leidos",
                              DT::dataTableOutput("tabla_completa")),
@@ -51,9 +57,9 @@ shinyUI(fluidPage(
                                 funciones con valor = 0 (de otra forma, las funciones no existentes en
                                 estos departamentos no son tomadas en cuenta, cuando en realidad tienen 
                                 un tiempo de proceso 0)"),
-                             h4("3. Al convertir tiempo en personas, se consideran para fabricar 1000 pares
-                                por dia"),
-                             h3("ANALSIS DE PERSONAL"),
+                             h4("3. Al convertir tiempo en personas, se consideran para fabricar 100 pares
+                                por hora"),
+                             h3("ANALISIS DE PERSONAL"),
                              h4("1. Requiere un valor de pares por producir para cada linea de produccion"),
                              h3("ANALISIS DE DESVIACIONES"),
                              h4("1. El indicador de desviacion es la suma de la desviacion promedio de cada
@@ -90,9 +96,10 @@ shinyUI(fluidPage(
                              column(4, h4("Personas por puesto"),
                                     tableOutput("total_puesto")),
                              column(12,h5(" ")),
-                             column(12,h4("Resumen por linea")),
-                             DT::dataTableOutput("Porlinea",width = 600)
-                             ),
+                             column(12,h4("Personal requerido por linea")),
+                             DT::dataTableOutput("PersonalPorlinea", width = 400),
+                             column(12, DT::dataTableOutput("PersonalPorEstilo"))
+                        ),
                     tabPanel("Analisis de desviaciones",
                              column(4,uiOutput("seleccion_linea")),
                              column(8,sliderInput("quant", "Limite para considerar como desviacion",
@@ -114,12 +121,12 @@ shinyUI(fluidPage(
                                                     "Usar escala independiente en cada grafico", FALSE),
                              column(12,plotlyOutput("plot.por.linea", height = "800px")),
                              DT::dataTableOutput("desviaciones", width = 200)
-                             ),
-                    tabPanel("Analisis de flujo continuo",
-                             column(3, uiOutput("flujo.deptos"),
+                         ),
+                    tabPanel("Analisis de flujo continuo (beta)",
+                             column(3, uiOutput("flujo.linea"),
                                     h5("Movimientos requeridos"),
                                     tableOutput("tabla.movimientos")),
-                             column(3, uiOutput("flujo.linea")),
+                             column(3, uiOutput("flujo.deptos")),
                              column(2, uiOutput("flujo.estilo")),
                              column(2, h5("Cumplimiento esperado"),
                                     verbatimTextOutput("cumpl.meta"),
@@ -133,10 +140,16 @@ shinyUI(fluidPage(
                                     verbatimTextOutput("ef.mejorada"),
                                     h4("Incremento en facturacion semanal"),
                                     verbatimTextOutput("aumento.facturacion")),
-                             column(12, plotlyOutput("plot.flujo"))
-                             # column(12,DT::dataTableOutput("tabla.plot")),
-                             # column(12,DT::dataTableOutput("balanceo"))
-                             )
+                             column(12, plotlyOutput("plot.flujo")),
+                             column(12, h4("Tabla de datos"),
+                                    DT::dataTableOutput("tabla.plot")),
+                             column(12, h4("Tabla de datos balanceada"),
+                                    DT::dataTableOutput("balanceo"))
+                         ),
+                    tabPanel("Analisis de Multi-habilidad (beta)",
+                             column(3, uiOutput("linea.habilidad")),
+                             column(12, tableOutput("tabla.habilidad"))
+                    )
                )
           )
      )
