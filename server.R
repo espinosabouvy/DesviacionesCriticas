@@ -149,7 +149,8 @@ shinyServer(function(input, output, session) {
           
           #completar con cero las funciones que existen en cada depto y el estilo no las tiene
           #primero se debe agregar todos los estilos a todas los deptos
-          estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
           
           #verificar que esa linea tenga ese departamento
           if (nrow(datos[datos$DEPTO== input$depto.selected,]) == 0) return(NULL)
@@ -219,7 +220,8 @@ shinyServer(function(input, output, session) {
           
           #completar con cero las funciones que existen en cada depto y el estilo no las tiene
           #primero se debe agregar todos los estilos a todas los deptos
-          estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
           
           #verificar que esa linea tenga ese departamento
           if (nrow(datos[datos$DEPTO== input$depto.selected,]) == 0) return(NULL)
@@ -601,8 +603,8 @@ shinyServer(function(input, output, session) {
           
           #completar con cero las funciones que existen en cada depto y el estilo no las tiene
           #primero se debe agregar todos los estilos a todas los deptos
-          estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
-          
+          estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
 
           #crear bd vacia
           bd <- data.frame("ESTILO" = numeric(0),
@@ -765,7 +767,8 @@ shinyServer(function(input, output, session) {
                dona <- min(plot.final$DIF)
                recibe <- min(plot.final$Pct.meta)
                
-               movimientos <<- c(movimientos, data.frame("Origen" = dona, "Destino" = recibe))
+               movimientos <- c(movimientos, data.frame("Origen" = dona, "Destino" = recibe))
+               #movimientos <<- c(movimientos, data.frame("Origen" = dona, "Destino" = recibe))
                
                #pueden haber 2 que donan y 2 que reciben, se elige el primero
                funcionrecibe <- head(plot.final[plot.final$Pct.meta == recibe,]$FUNCION,1)
@@ -1081,6 +1084,7 @@ shinyServer(function(input, output, session) {
                )
           })
           
+          
           #Analisis de personal - eficiencia por estilo (para graficar)
           output$eficiencia.linea <- DT::renderDataTable({
                temp <- eficiencia.funcion()
@@ -1104,7 +1108,7 @@ shinyServer(function(input, output, session) {
                temp <- eficiencia.funcion()
                if(is.null(temp)) return(NULL)
                
-               eficiencia.por.linea <- temp%>%
+               meta.por.linea <- temp%>%
                     group_by(LINEA)%>%
                     summarise("PROMEDIO" = ceiling(mean(PROD.RESTRICCION)),
                               "MEDIANA" = ceiling(quantile(PROD.RESTRICCION, probs = 0.5)),
@@ -1113,7 +1117,7 @@ shinyServer(function(input, output, session) {
                     mutate("CUMPLIMIENTO" = ceiling(PROMEDIO/PAR.PRESUP*100))%>%
                     select(PROMEDIO, CUMPLIMIENTO, MEDIANA, DESVIACION)
                
-               DT::datatable(eficiencia.por.linea, options = list(pageLength = 10))
+               DT::datatable(meta.por.linea, options = list(pageLength = 10))
           })
 
           
@@ -1178,7 +1182,7 @@ shinyServer(function(input, output, session) {
                total.pares <- sum(prod.prom$PROD.REAL)
 
                result <- merge(tabla.renglon, prod.prom, by = "LINEA")%>%
-                    mutate("COSTO.PAR" = round((sueldo*PERSONAS)/PROD.REAL,2),
+                    mutate("COSTO.PAR" = round((sueldo*PERSONAS)/(PROD.REAL*5),2),
                            "PRECIO.POND" = COSTO.PAR*PROD.REAL)
                
                

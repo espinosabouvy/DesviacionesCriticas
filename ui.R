@@ -46,7 +46,7 @@ shinyUI(fluidPage(
                #    la suscripcion en Apps/Comprar aplicaciones o enviarnos un correo en la cuenta 
                #    luis@magro.com.mx para ayudarte"),
                h5("Si tienes alguna duda de como funciona esta app, puedes enviarnos un correo a 
-                  luis@magro.com.mx para ayudarte. Vrs-3.0"),
+                  luis@magro.com.mx para ayudarte. Vrs-3.1"),
                tabsetPanel(
                     tabPanel("Datos leidos",
                              DT::dataTableOutput("tabla_completa")),
@@ -175,8 +175,8 @@ shinyUI(fluidPage(
                              column(6, h4("Personas por puesto"),
                                     tableOutput("total_puesto")),
                              column(12,h4("Personal requerido por linea de produccion")),
-                             column(6,DT::dataTableOutput("PersonalPorlinea"))
-                             # column(12, DT::dataTableOutput("PersonalPorEstilo"))
+                             column(6,DT::dataTableOutput("PersonalPorlinea")),
+                             column(12, DT::dataTableOutput("PersonalPorEstilo"))
                     ),
                     tabPanel("Analisis de Multi-habilidad (beta)",
                              column(3, uiOutput("linea.habilidad")),
