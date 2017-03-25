@@ -8,6 +8,12 @@ shinyUI(fluidPage(
      #titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
      sidebarLayout(
           sidebarPanel(
+               #fijar el ancho del left sidebar
+               # tags$head(
+               # tags$style(type="text/css", "select { max-width: 140px; }"),
+               # tags$style(type="text/css", ".span4 { max-width: 190px; }"),
+               # tags$style(type="text/css", ".well { max-width: 300px; }")
+               # ),
                fileInput("browse", "Selecciona archivo CSV que obtienes de Tiempos/Reportes/Plantilla basica/
                          Estilos habilitados",
                          accept = c(
@@ -37,10 +43,42 @@ shinyUI(fluidPage(
                #    la suscripcion en Apps/Comprar aplicaciones o enviarnos un correo en la cuenta 
                #    luis@magro.com.mx para ayudarte"),
                h5("Si tienes alguna duda de como funciona esta app, puedes enviarnos un correo a 
-                  luis@magro.com.mx para ayudarte. Vrs-2.0"),
+                  luis@magro.com.mx para ayudarte. Vrs-2.5"),
                tabsetPanel(
                     tabPanel("Datos leidos",
                              DT::dataTableOutput("tabla_completa")),
+                    tabPanel("Calculos",
+                             h2("Definicion de calculos"),
+                             h3("ANALISIS DE ASIGNACION"),
+                             h4("1. Se considera que todos los estilos se procesan en el departamento
+                                FAMILIA"),
+                             h4("2. Se agregan todos los estilos existentes en FAMILIA a todos los 
+                                departamentos en todas las
+                                funciones con valor = 0 (de otra forma, las funciones no existentes en
+                                estos departamentos no son tomadas en cuenta, cuando en realidad tienen 
+                                un tiempo de proceso 0)"),
+                             h4("3. Al convertir tiempo en personas, se consideran para fabricar 100 pares
+                                por hora"),
+                             h3("ANALISIS DE PERSONAL"),
+                             h4("1. Requiere un valor de pares por producir para cada linea de produccion"),
+                             h3("ANALISIS DE DESVIACIONES"),
+                             h4("1. El indicador de desviacion es la suma de la desviacion promedio de cada
+                                funcion por linea"),
+                             h4("2. El valor minimo y maximo es la suma de los maximos promedio de cada 
+                                fucnion por linea"),
+                             h4("3. El incremento en la capacidad de produccion es el porcentaje de disminucion
+                                en el tiempo maximo de cada linea"),
+                             h4("4. Incremento de facturacion semanal, incremento en capacidad de produccion
+                                por pares producidos por 5 dias por precio promedio. (Requiere datos de pares a
+                                producir por semana por linea)"),
+                             h3("ANALISIS DE FLUJO"),
+                             h4("1. El analisis de flujo considera 100 pares por hora si no se definen 
+                                pares por producir por linea"),
+                             h4("2. Al seleccionar mas de un estilo se considera producir una cantidad igual
+                                de cada uno de ellos"),
+                             h4("3. El incremento en la produccion y facturacion considera producir el estilo
+                                seleccionado durante una semana")
+                    ),
                     tabPanel("Analisis de asignacion", 
                              #tableOutput("mejora"),
                              column(4,tableOutput("total.fam")),
@@ -58,9 +96,10 @@ shinyUI(fluidPage(
                              column(4, h4("Personas por puesto"),
                                     tableOutput("total_puesto")),
                              column(12,h5(" ")),
-                             column(12,h4("Resumen por linea")),
-                             DT::dataTableOutput("Porlinea",width = 600)
-                             ),
+                             column(12,h4("Personal requerido por linea")),
+                             DT::dataTableOutput("PersonalPorlinea", width = 400),
+                             column(12, DT::dataTableOutput("PersonalPorEstilo"))
+                        ),
                     tabPanel("Analisis de desviaciones",
                              column(4,uiOutput("seleccion_linea")),
                              column(8,sliderInput("quant", "Limite para considerar como desviacion",
@@ -82,39 +121,35 @@ shinyUI(fluidPage(
                                                     "Usar escala independiente en cada grafico", FALSE),
                              column(12,plotlyOutput("plot.por.linea", height = "800px")),
                              DT::dataTableOutput("desviaciones", width = 200)
-                             ),
-                    tabPanel("Analisis de flujo continuo",
+                         ),
+                    tabPanel("Analisis de flujo continuo (beta)",
+                             column(3, uiOutput("flujo.linea"),
+                                    h5("Movimientos requeridos"),
+                                    tableOutput("tabla.movimientos")),
                              column(3, uiOutput("flujo.deptos")),
-                             column(3, uiOutput("flujo.linea")),
                              column(2, uiOutput("flujo.estilo")),
-                             column(2, h4("Cumplimiento esperado"),
-                                    verbatimTextOutput("cumpl.meta")),
-                             column(2, h4("Eficiencia esperada"),
-                                    verbatimTextOutput("ef.esperada")),
+                             column(2, h5("Cumplimiento esperado"),
+                                    verbatimTextOutput("cumpl.meta"),
+                                    h5("Cumplimiento mejorado"),
+                                    verbatimTextOutput("cumpl.mejorado"),
+                                    h4("Incremento de produccion semanal"),
+                                    verbatimTextOutput("aumento.pares")),
+                             column(2, h5("Eficiencia esperada"),
+                                    verbatimTextOutput("ef.esperada"),
+                                    h5("Eficiencia mejorada"),
+                                    verbatimTextOutput("ef.mejorada"),
+                                    h4("Incremento en facturacion semanal"),
+                                    verbatimTextOutput("aumento.facturacion")),
                              column(12, plotlyOutput("plot.flujo")),
-                             column(12,DT::dataTableOutput("tabla.plot")),
-                             column(12,DT::dataTableOutput("balanceo"))
-                             ),
-                    tabPanel("Calculos",
-                             h2("Definicion de calculos"),
-                             h4("1. Se considera que todos los estilos son requieren del departamento
-                                FAMILIA"),
-                             h4("2. Se agregan todos los estilos existentes en FAMILIA a todos los 
-                                departamentos en todas las
-                                funciones con valor = 0 (de otra forma, las funciones no existentes en
-                                estos departamentos no son tomadas en cuenta, cuando en realidad tienen 
-                                un tiempo de proceso 0)"),
-                             h4("3. Al convertir tiempo en personas, se consideran para fabricar 1000 pares
-                                por dia"),
-                             h4("4. El indicador de desviacion es la suma de la desviacion promedio de cada
-                                funcion por linea"),
-                             h4("5. El valor minimo y maximo es la suma de los maximos promedio de cada 
-                                fucnion por linea"),
-                             h4("6. El incremento en la capacidad de produccion es el porcentaje de disminucion
-                                en el tiempo maximo de cada linea"),
-                             h4("7. Incremento de facturacion semanal, incremento en capacidad de produccion
-                                por pares producidos por 5 dias por precio promedio")
-                             )
+                             column(12, h4("Tabla de datos"),
+                                    DT::dataTableOutput("tabla.plot")),
+                             column(12, h4("Tabla de datos balanceada"),
+                                    DT::dataTableOutput("balanceo"))
+                         ),
+                    tabPanel("Analisis de Multi-habilidad (beta)",
+                             column(3, uiOutput("linea.habilidad")),
+                             column(12, tableOutput("tabla.habilidad"))
+                    )
                )
           )
      )
