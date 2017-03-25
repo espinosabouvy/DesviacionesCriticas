@@ -12,7 +12,8 @@ shinyServer(function(input, output, session) {
      #tabla vacia para cargar pares por linea
      tb.porproduc <- data.frame("Linea" = numeric(0), "Pares" = numeric(0))
      
-
+     
+     #lectura inicial de datos y transformacin al formato requerido de estilo-puesto1-puesto2
      lectura.inicial <- reactive({
           require(dplyr)
           require(tidyr)
@@ -49,6 +50,10 @@ shinyServer(function(input, output, session) {
                                         paste(tiempos.raw$FUNCION))
           tiempos.raw$FUNCION <- ifelse(grepl("CA-PES", 
                                               tiempos.raw$FUNCION),"PESPUNTADOR",
+                                        paste(tiempos.raw$FUNCION))
+          #corregir del sistema, mientras, debe desaparecer
+          tiempos.raw$FUNCION <- ifelse(grepl("PRECONFORM", 
+                                              tiempos.raw$FUNCION),"PRELIMINAR",
                                         paste(tiempos.raw$FUNCION))
           tiempos.raw$FUNCION <- ifelse(grepl("PRELIM", 
                                               tiempos.raw$FUNCION),"PRELIMINAR",
@@ -116,16 +121,20 @@ shinyServer(function(input, output, session) {
           
  
           
-     #TABLA COMPLETA DE ESTILOS Y TIEMPOS
+     #Datos leidos - tabla de estilos y tiempos
      output$tabla_completa <- DT::renderDataTable({
           tabla.raw <- reporte.final()
           if(is.null(tabla.raw)) return(NULL)
-
+          
           DT::datatable(tabla.raw, options = list(pageLength = 25))
      })
      
      
-     reporte.final <- reactive({
+     #Menu - filtra deptos y lineas, completa con cero las funciones que no aparecen en los deptos
+     #esto es logico, pues no se cargan los puestos que no se utilizan, pero si causan desviacion
+     #pues realmente se tiene gente y no se utiliza.  NO CORRIGE AL SELEECIONAR MOSTRAR COMO PERSONAS
+     
+     reporte.final.sin.personas <- reactive({
           datos <- lectura.inicial()
           if (is.null(datos)){
                #sin archivo seleccionado
@@ -137,22 +146,13 @@ shinyServer(function(input, output, session) {
           # en realidad es no se procesa junto
           if (is.null(input$fams.selected)) return(NULL)
           
-
-          #convertir los tiempos en personas utilizando sliders (para 1000 pares por dia)
-          if (input$personas) {
-               efic <- input$eficiencia/100
-               hrs <- input$horas.trabajo
-               datos <-  datos%>%
-                    mutate("PERSONAS" = ceiling(TIEMPO*1000/(efic*hrs*3600)))%>%
-                    select(DEPTO, ESTILO, LINEA, FUNCION, "TIEMPO" = PERSONAS)
-          }
-          
           datos <- datos%>%
                filter(LINEA %in% input$fams.selected)
           
           #completar con cero las funciones que existen en cada depto y el estilo no las tiene
           #primero se debe agregar todos los estilos a todas los deptos
           estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
           
           #verificar que esa linea tenga ese departamento
           if (nrow(datos[datos$DEPTO== input$depto.selected,]) == 0) return(NULL)
@@ -190,7 +190,81 @@ shinyServer(function(input, output, session) {
           
      })  
 
-     # Drop-down de linea a definir pares por producir
+     #Menu - filtra deptos y lineas, completa con cero las funciones que no aparecen en los deptos
+     #esto es logico, pues no se cargan los puestos que no se utilizan, pero si causan desviacion
+     #pues realmente se tiene gente y no se utiliza.
+     #CALCULA PERSONAS EN LUGAR DE TIEMPOS, BASADO EN 100 PARES POR HORA
+     
+     reporte.final <- reactive({
+          datos <- lectura.inicial()
+          if (is.null(datos)){
+               #sin archivo seleccionado
+               return(NULL)
+          }
+          
+          #leer combo y definir lineas a usar, sirve para quitar estilos sin linea asignada
+          #y para quitar canteras o maquilas, dan problemas al agrupar en un solo depto pues
+          # en realidad es no se procesa junto
+          if (is.null(input$fams.selected)) return(NULL)
+          
+          
+          datos <- datos%>%
+               filter(LINEA %in% input$fams.selected)
+          
+          #convertir los tiempos en personas utilizando sliders (para 1000 pares por dia)
+          if (input$personas) {
+               efic <- input$eficiencia/100
+               hrs <- input$horas.trabajo
+               datos <-  datos%>%
+                    mutate("PERSONAS" = ceiling(TIEMPO*1000/(efic*hrs*3600)))%>%
+                    select(DEPTO, ESTILO, LINEA, FUNCION, "TIEMPO" = PERSONAS)
+          }
+          
+          #completar con cero las funciones que existen en cada depto y el estilo no las tiene
+          #primero se debe agregar todos los estilos a todas los deptos
+          estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+<<<<<<< HEAD
+=======
+          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+>>>>>>> d0070f8db82cee6935b884075169fe4557f1957a
+          
+          #verificar que esa linea tenga ese departamento
+          if (nrow(datos[datos$DEPTO== input$depto.selected,]) == 0) return(NULL)
+          
+          #hacer esto cuando se seleccione el depto
+          temp <- datos%>%
+               filter(DEPTO == input$depto.selected)%>%
+               select(ESTILO, FUNCION, TIEMPO)%>%
+               group_by(ESTILO, FUNCION)%>%
+               summarise("TIEMPO" = sum(TIEMPO))%>%
+               spread(FUNCION,TIEMPO, drop = FALSE, fill = 0)
+          datos <- merge(estilos.fam, temp, by = "ESTILO")
+          
+          
+          #agrupar en una sola linea
+          #cambia los datos de la columna linea todo a 1
+          if(input$agrupado){
+               datos[,2] <- 1
+          }
+          
+          #convertir NAS en cero
+          datos[is.na(datos)]<-0
+          
+          #estilo y linea como factor
+          datos[,1] <- as.factor(datos[,1])
+          datos[,2] <- as.factor(datos[,2])
+          #nas a cero
+          datos[is.na(datos)]<-0
+          
+          #limitar cantidad de modelos
+          #datos<- datos[1:20,]
+          
+          
+          return(datos)
+          
+     })  
+     
+     # General - Drop-down de linea a definir pares por producir
      output$lineas.selected <- renderUI({
           num.fam <- reporte.final()
           if(is.null(num.fam)) return(NULL)
@@ -199,6 +273,7 @@ shinyServer(function(input, output, session) {
           selectInput("linea.seleccionada", "Linea de produccion", as.list(l.linea))
      })
      
+     #General - crea la tabla de pares por producir por linea
      actualiza <- eventReactive(input$agregar, {
           #agregar a la tabla los pares
           l.linea <- input$linea.seleccionada
@@ -208,16 +283,19 @@ shinyServer(function(input, output, session) {
           
           #quita la linea que existe (actualizar)
           tb.porproduc <- tb.porproduc%>%filter(LINEA != l.linea)
-          tb.porproduc <<- rbind(tb.porproduc, temp)%>%arrange(LINEA)
+          tb.porproduc <<- rbind(tb.porproduc, temp)%>%
+               arrange(LINEA)
      })
      
+     #General - imprime tabla de pares por producir
      output$por.producir <- DT::renderDataTable({
 
           tabla <- actualiza()               
           DT::datatable(tabla, options = list(dom = 't'))
      })
      
-     # Drop-down de linea a filtrar
+     
+     # General - Drop-down de linea a filtrar
      output$seleccion_linea <- renderUI({
           num.fam <- reporte.final()
           if(is.null(num.fam)) return(NULL)
@@ -225,6 +303,35 @@ shinyServer(function(input, output, session) {
           selectInput("dataset", "Filtrar por linea de produccion", as.list(l.linea))
      })
      
+     #Analisis de asignacion - Grafico por puesto
+     output$grafico.final <- renderPlotly({
+          reporte <- reporte.final()
+          if(is.null(reporte)) {
+               return(NULL)
+          } else {
+
+               #crea tabla de 3 columnas ESTILO, PUESTO, TIEMPO
+               fin <- dim(reporte)[2]
+               tabla.renglon <- gather(reporte, "PUESTO","TIEMPO",c(3:fin))
+               
+               unidades <- ifelse(input$personas, "Personas", "Segundos")
+               
+               # grafico de desviaciones por puesto
+               ggplotly(
+                    ggplot(data = tabla.renglon, aes(ESTILO, TIEMPO, colour = LINEA)) + 
+                         geom_point() + 
+                         facet_grid(PUESTO~., as.table = F, scales = "free") +
+                         xlab("Estilos") +
+                         ylab(unidades)  +
+                         ggtitle("Dispersion de tiempo/personas para producir un par") +
+                         theme(axis.text=element_text(size=8))
+               )
+          } 
+          
+          
+     })
+     
+     #Desviaciones - escala independiente por grafico
      free.scale.fin <- reactive({
           b.scales = "fixed"
           if (input$same.scale.fin){
@@ -235,11 +342,11 @@ shinyServer(function(input, output, session) {
      })
      
 
-     #grafico por linea, dependen del combobox cual mostrar
+     #Desviaciones - grafico por linea, dependen del combobox cual mostrar
      obtener.criticos <- reactive({
           reporte <- reporte.final()
           if(is.null(reporte)) return(NULL)
-
+          
           limites <- input$quant
           
           linea <- input$dataset
@@ -272,7 +379,7 @@ shinyServer(function(input, output, session) {
                                                    ifelse(TIEMPO < Q1 | TIEMPO > Q4,"FUERA","NORMAL")))
      })
      
-     #imprimir los estilos criticos segun el slider de porcentaje en los limites
+     #Desviaciones - Imprimir los estilos criticos segun el slider de porcentaje en los limites
      output$cancelar.criticos  <- renderTable({
           for.plot <- obtener.criticos()
           
@@ -288,16 +395,13 @@ shinyServer(function(input, output, session) {
           
      })
      
-     #grafico por linea, dependen del combobox cual mostrar
+     #Desviaciones - Grafico por linea, dependen del combobox cual mostrar
      output$plot.por.linea <- renderPlotly({
           for.plot <- obtener.criticos()
           
           if (is.null(for.plot)) return(NULL)
           
           b.scales <- free.scale.fin()
-          
-          #quitar del analisis los criticos
-          
           
           #cuando se cambian tiempos por personas
           unidades <- ifelse(input$personas, "Personas", "Segundos")
@@ -320,7 +424,7 @@ shinyServer(function(input, output, session) {
           )
      })
      
-     #ANALISIS FINAL
+     #Desviaciones - Imprimir desviaciones por linea
      output$total.fam <- renderTable({
           reporte <- reporte.final()
           if(is.null(reporte)) {
@@ -332,7 +436,7 @@ shinyServer(function(input, output, session) {
           }
      })
      
-     #indicador general de desviacion (imprimir)
+     #Desviaciones - indicador general de desviacion (imprimir)
      output$indicador.desviacion <- renderTable({
           tabla <- fun.indicador.desviacion()
           if (is.null(tabla)) return(NULL)
@@ -340,11 +444,11 @@ shinyServer(function(input, output, session) {
           return(temp)
      })
      
-     #calcula tabla de desviaciones
+     #Desviaciones - calcula tabla de desviaciones
      fun.indicador.desviacion <- reactive({
           reporte <- reporte.final()
           if(is.null(reporte)) return(NULL)
-
+          
                #indicador de desviacion (promedio/(max-min))
                #crea tabla de 3 columnas ESTILO, PUESTO, TIEMPO
                fin <- dim(reporte)[2]
@@ -364,6 +468,7 @@ shinyServer(function(input, output, session) {
 
      })
      
+     #Desviaciones - Imprimir valor de porcentaje de mejora
      output$pct.mejora <- renderPrint({
           mejora <- desviacion.mejorada()
           if(is.null(mejora)) return(NULL)
@@ -378,6 +483,7 @@ shinyServer(function(input, output, session) {
      
      })
      
+     #Desviaciones - Imprimir valor de desviacion mejorada
      output$nva.desviacion <- renderPrint({
           mejora <- desviacion.mejorada()
           if(is.null(mejora)) return(NULL)
@@ -385,7 +491,7 @@ shinyServer(function(input, output, session) {
           cat(as.numeric(mejora$NvaDesviacion))
      })
      
-
+     #Desviaciones - Imprimir dato de aumento de produccion
      output$incr.produccion <- renderPrint({
           mejora <- desviacion.mejorada()
           if(is.null(mejora)) return(NULL)
@@ -396,13 +502,12 @@ shinyServer(function(input, output, session) {
           incr <- round((1-(mejora$Maximo/anterior%>%
                                  filter(LINEA == input$dataset)%>%
                                  select(Maximo)))*100,2)
-          #incr <- anterior%>%filter(LINEA == input$dataset)%>%select(Maximo)
           
           cat(as.numeric(incr))
      })
 
      
-     #indicador general de desviacion sin criticos
+     #Desviaciones - indicador general de desviacion sin criticos
      desviacion.mejorada <- reactive({
           
           reporte <- obtener.criticos()
@@ -423,11 +528,11 @@ shinyServer(function(input, output, session) {
                return(mejora)
      })
      
+     #Desviaciones - tabla de desviaciones por linea
      output$desviaciones <- DT::renderDataTable({
           reporte <- reporte.final()
-          if(is.null(reporte)) {
-               return(NULL)
-          } else {
+          if(is.null(reporte)) return(NULL)
+          
                #crea tabla de 3 columnas ESTILO, PUESTO, TIEMPO
                fin <- dim(reporte)[2]
                tabla.renglon <- gather(reporte, "PUESTO","TIEMPO",c(3:fin))
@@ -439,11 +544,11 @@ shinyServer(function(input, output, session) {
                               "Minimo" = min(TIEMPO) ,
                               "Maximo" = max(TIEMPO))
                DT::datatable(desviaciones, options = list(pageLength = 50))
-          }
+
      })
      
      
-     # Drop-down de departamentos, para seleccionar para flujos
+     #Flujo continuo -  Drop-down de departamentos, para seleccionar para flujos
      output$flujo.deptos <- renderUI({
           deptos <- lectura.inicial()
           if(is.null(deptos)) return(NULL)
@@ -452,9 +557,9 @@ shinyServer(function(input, output, session) {
                       multiple = T)
      })
      
-     # Drop-down linea para revisar flujo
+     #Flujo continuo -  Drop-down linea para revisar flujo
      output$flujo.linea <- renderUI({
-          datos <- reporte.final()
+          datos <- reporte.final.sin.personas()
           if(is.null(datos)) return(NULL)
           
           lineas <- unique(datos$LINEA)%>%sort()
@@ -462,9 +567,9 @@ shinyServer(function(input, output, session) {
                       multiple = F)
      })
      
-     # Drop-down de estilos para flujo
+     #Flujo continuo -  Drop-down de estilos para flujo
      output$flujo.estilo <- renderUI({
-          datos <- reporte.final()
+          datos <- reporte.final.sin.personas()
           if(is.null(datos)) return(NULL)
           
                datos <- datos%>%filter(LINEA == input$cb.lineas.flujo)
@@ -473,6 +578,7 @@ shinyServer(function(input, output, session) {
                            multiple = T)
      })
      
+     #Flujo continuo - calcula plantilla, completa las funciones con cero (basado en reporte final)
      reporte.flujo <- reactive({
           datos <- lectura.inicial()
           if (is.null(datos)) return(NULL)
@@ -489,13 +595,11 @@ shinyServer(function(input, output, session) {
           }
           
           #convertir los tiempos en personas para 1000 pares al dia
-          #if (input$personas){
                efic <- input$eficiencia/100
                hrs <- input$horas.trabajo
                datos <-  datos%>%
                     mutate("PERSONAS" = ceiling(TIEMPO*1000/(efic*hrs*3600)))%>%
                     select(DEPTO, ESTILO, LINEA, FUNCION, PERSONAS)
-          #}
           
           #lineas seleccionadas
           datos <- datos%>%
@@ -504,8 +608,8 @@ shinyServer(function(input, output, session) {
           
           #completar con cero las funciones que existen en cada depto y el estilo no las tiene
           #primero se debe agregar todos los estilos a todas los deptos
-          estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
-          
+          estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
+          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
 
           #crear bd vacia
           bd <- data.frame("ESTILO" = numeric(0),
@@ -567,7 +671,7 @@ shinyServer(function(input, output, session) {
      })  
      
      
-     
+     #Flujo continuo - calcula plantilla basica, metas y cumplimiento por depto, linea
      full.flujo <- reactive({
           
                datos <- reporte.flujo()
@@ -614,7 +718,7 @@ shinyServer(function(input, output, session) {
                
      })
 
-     #tabla del grafico
+     #Flujo continuo - tabla del grafico (pendiente si presentar o no)
      output$tabla.plot <- DT::renderDataTable({
           plot.final <- full.flujo()
 
@@ -626,7 +730,7 @@ shinyServer(function(input, output, session) {
           DT::datatable(plot.final, options = list(pageLength = 25))
      })
      
-     #tabla reporte flujo (se debe borrar despues)
+     #Flujo continuo - tabla completa de flujo (pendiente si presentar o no)
      output$tabla.full <- DT::renderDataTable({
           plot.final <- reporte.flujo()
           
@@ -634,7 +738,7 @@ shinyServer(function(input, output, session) {
           DT::datatable(plot.final, options = list(pageLength = 25))
      })
      
-     #tabla del grafico balanceada
+     #Flujo continuo - tabla completa de flujo balanceado (pendiente si presentar o no)
      output$balanceo <- DT::renderDataTable({
           balanceado <- balanceo()
           if (is.null(balanceado)) return(NULL)
@@ -645,6 +749,7 @@ shinyServer(function(input, output, session) {
           DT::datatable(balanceado, options = list(pageLength = 25))
      })
      
+     #Flujo continuo - realiza el balanceo para mejorar metas y eficiencia
      balanceo <- reactive({
           
           plot.final <- full.flujo()
@@ -667,7 +772,8 @@ shinyServer(function(input, output, session) {
                dona <- min(plot.final$DIF)
                recibe <- min(plot.final$Pct.meta)
                
-               movimientos <<- c(movimientos, data.frame("Origen" = dona, "Destino" = recibe))
+               movimientos <- c(movimientos, data.frame("Origen" = dona, "Destino" = recibe))
+               #movimientos <<- c(movimientos, data.frame("Origen" = dona, "Destino" = recibe))
                
                #pueden haber 2 que donan y 2 que reciben, se elige el primero
                funcionrecibe <- head(plot.final[plot.final$Pct.meta == recibe,]$FUNCION,1)
@@ -688,7 +794,7 @@ shinyServer(function(input, output, session) {
                nva.meta.menos <- ifelse(personas.menos ==0,300, round((nva.plantilla.menos /personas.menos)*100,2))
                
                #si ahora min meta es mayor (aun cuando le quitamos a una persona, actualiza)
-               if(recibe < nva.meta.menos | nva.meta.menos == Inf){
+               if(recibe < nva.meta.menos | nva.meta.menos %in% Inf){
                     nva.plantilla.mas -> plot.final[plot.final$FUNCION == funcionrecibe,]$PLANTILLA
                     nva.plantilla.menos -> plot.final[plot.final$FUNCION == funciondona,]$PLANTILLA
                     
@@ -717,6 +823,7 @@ shinyServer(function(input, output, session) {
      })
      
      
+     #Flujo continuo - Imprime cumplimiento de meta inicial
      output$cumpl.meta <- renderPrint({
           plot.final <- full.flujo()
           
@@ -725,6 +832,7 @@ shinyServer(function(input, output, session) {
           cat(paste(ceiling(min(plot.final$Pct.meta))),"%")
      })
      
+     #Flujo continuo - Imprime aumento en pares producidos al balancear
      output$aumento.pares <- renderPrint({
           inicial <- full.flujo()
           balanceado <- balanceo()
@@ -736,6 +844,8 @@ shinyServer(function(input, output, session) {
           
           cat(format(ceiling(mas.pares), decimal.mark=".",big.mark=",", small.mark=",", small.interval=3))
      })
+     
+     #Flujo continuo - Imprime aumento en facturacion al balancear
      output$aumento.facturacion <- renderPrint({
           inicial <- full.flujo()
           balanceado <- balanceo()
@@ -748,6 +858,7 @@ shinyServer(function(input, output, session) {
           cat(format(ceiling(mas.pares)*input$precio.prom, decimal.mark=".",big.mark=",", small.mark=",", small.interval=3))
      })
      
+     #Flujo continuo - Imprime cumplimiento mejorado al balancear
      output$cumpl.mejorado <- renderPrint({
           plot.final <- balanceo()
           
@@ -755,7 +866,8 @@ shinyServer(function(input, output, session) {
           
           cat(paste(ceiling(min(plot.final$Pct.meta))),"%")
      })
-
+     
+     #Flujo continuo - Imprime eficiencia esperada inicial
      output$ef.esperada <- renderPrint({
           plot.final <- full.flujo()
           
@@ -764,6 +876,7 @@ shinyServer(function(input, output, session) {
           cat(paste(ceiling(mean(plot.final$EFIC)*100),"%"))
      })
      
+     #Flujo continuo - Imprime eficiencia mejorada con balanceo
      output$ef.mejorada <- renderPrint({
           plot.final <- balanceo()
           
@@ -771,7 +884,8 @@ shinyServer(function(input, output, session) {
           
           cat(paste(ceiling(mean(plot.final$EFIC)*100),"%"))
      })
-
+     
+     #Flujo continuo - tabla de movimientos requeridos con balanceo
      output$tabla.movimientos <- renderTable({
           datos.normal <- full.flujo()
           if (is.null(datos.normal))  return(NULL)
@@ -792,8 +906,10 @@ shinyServer(function(input, output, session) {
           
      })
      
+     #Flujo continuo - Observa cuando se seleccionan estilos
      observeEvent(input$cb.estilos.flujo, {
-
+          
+          #Flujo continuo - Imprime grafico de flujo continuo
           output$plot.flujo <- renderPlotly({
                
                datos.normal <- full.flujo()
@@ -830,13 +946,17 @@ shinyServer(function(input, output, session) {
      })
      
      
-     #aqui esta todo lo que requiere pares por linea - observa el boton agregar y actualiza
+     #General - Oberva boton agregar y actualiza todo lo referente a analisis de personal
+     #cuando se carga un meta de pares por linea
      observeEvent(input$agregar, {
           
-          #calcula con los pares por linea - si no, no calcula
+          #Analisis de desviaciones - incremento en facturacion quitando criticos
           output$inc.facturacion <- renderPrint({
                mejora <- desviacion.mejorada()
                if(is.null(mejora)) return(NULL)
+               
+               #si no hay pares por producir por linea no hace el calculo de personas
+               if(nrow(tb.porproduc)==0) return(NULL)               
                
                anterior <- fun.indicador.desviacion()
                if(is.null(anterior)) return(NULL)
@@ -844,10 +964,7 @@ shinyServer(function(input, output, session) {
                incr <- round((1-(mejora$Maximo/anterior%>%
                                       filter(LINEA == input$dataset)%>%
                                       select(Maximo)))*100,2)
-               
-               #si no hay pares por producir por linea no hace el calculo de personas
-               if(nrow(tb.porproduc)==0) return(NULL)
-               
+
                l.actual <- input$dataset
                par.fam <- tb.porproduc%>%
                     filter(LINEA == l.actual)%>%
@@ -860,10 +977,9 @@ shinyServer(function(input, output, session) {
                cat(format(mas.fact, decimal.mark=".",big.mark=",", small.mark=",", small.interval=3))
           })
           
-          #personal por linea
-          output$PersonalPorlinea <- DT::renderDataTable({
-               
-               temp <- reporte.final()
+          #Analisis de personal - genera plantilla basica por linea, puesto, base de las demas
+          calcular.plantilla <- reactive({
+               temp <- reporte.final.sin.personas()
                if(is.null(temp)) return(NULL)
                #si no hay pares por producir por linea no hace el calculo
                if(nrow(tb.porproduc)==0) return(NULL)
@@ -871,168 +987,284 @@ shinyServer(function(input, output, session) {
                fin <- dim(temp)[2]
                efic <- input$eficiencia/100
                hrs <- input$horas.trabajo
-               familias <- max(as.numeric(temp$LINEA))
-     
-               tabla.renglon <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
-                    group_by(LINEA, PUESTO)%>%
-                    summarise("TIEMPO" = round(mean(TIEMPO),2))%>%
-                    merge(tb.porproduc, by = "LINEA")%>%
-                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))
+               sds <- input$sds
                
+
+               tabla.renglon <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
+                    merge(tb.porproduc, by = "LINEA")%>%
+                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))%>%
+                    group_by(LINEA, PUESTO)%>%
+                    summarise("TIEMPO" = ceiling(mean(TIEMPO)),
+                              "PARES" = min(PARES),
+                              "PERSONAS" = ceiling(mean(PERSONAS+(sds*sd(PERSONAS)))))
+
+               
+               return(tabla.renglon)
+               
+          })
+          
+          #Analisis de personal - Tabla por linea-puesto
+          output$PersonalPorlinea <- DT::renderDataTable({
+               tabla.renglon <- calcular.plantilla()
+               if (is.null(tabla.renglon)) return(NULL)
+          
                DT::datatable(tabla.renglon, options = list(pageLength = 50))
                
           })
           
-          #personal por linea
+
+          #Analisis de personal - plantilla basica, Calcula restriccion y eficiencia por funcion
+          eficiencia.funcion <- reactive({
+               temp <- reporte.final.sin.personas()
+               if(is.null(temp)) return(NULL)
+               #si no hay pares por producir por linea no hace el calculo
+               if(nrow(tb.porproduc)==0) return(NULL)
+               
+               fin <- dim(temp)[2]
+               efic <- input$eficiencia/100
+               hrs <- input$horas.trabajo
+               sds <- input$sds
+          
+          #primero convierte a personas y luego redondea
+          plantilla <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
+               merge(tb.porproduc, by = "LINEA")%>%
+               mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))%>%
+               group_by(LINEA, PUESTO)%>%
+               summarise("TIEMPO" = ceiling(mean(TIEMPO)),
+                         "PARES" = min(PARES),
+                         "PLANTILLA" = ceiling(mean(PERSONAS+(sds*sd(PERSONAS)))))%>%
+               select(LINEA, PUESTO, PARES, PLANTILLA)
+
+  
+               
+               tabla.renglon <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
+                    merge(plantilla, by = c("LINEA","PUESTO"))%>%
+                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)),
+                           "META" = ceiling(PLANTILLA/PERSONAS*100),
+                           "PARES.PRODUCCION" = ceiling(PARES*META/100),
+                           "CAPACIDAD.FUNCION" = ifelse(PARES<PARES.PRODUCCION, PARES, PARES.PRODUCCION))
+               
+               meta.estilo <- tabla.renglon%>%
+                    group_by(ESTILO)%>%
+                    summarise("PROD.RESTRICCION" = min(CAPACIDAD.FUNCION))
+                    
+               result <- merge(tabla.renglon, meta.estilo, by = "ESTILO")%>%
+                    mutate("EFICIENCIA" =ceiling(PROD.RESTRICCION/PARES.PRODUCCION*100),
+                           "APROVECHAMIENTO" = round(EFICIENCIA/100*PLANTILLA,2)) 
+               
+
+               return(result)
+          })
+          
+          
+          #Analisis de personal - Personal por linea con eficiencias
           output$PersonalPorEstilo <- DT::renderDataTable({
-               result <- eficiencia.estilo()
+               result <- eficiencia.funcion()
                if (is.null(result)) return(NULL)
                
                DT::datatable(result, options = list(pageLength = 50))
                
           })
           
-          #calcula restriccion, plantilla basica y eficiencia por funcion
-          eficiencia.estilo <- reactive({
-               temp <- reporte.final()
+          #Analisis de personal - eficiencia por estilo (para graficar)
+          output$eficiencia.estilo <- renderPlotly({
+               temp <- eficiencia.funcion()
                if(is.null(temp)) return(NULL)
-               #si no hay pares por producir por linea no hace el calculo
-               if(nrow(tb.porproduc)==0) return(NULL)
                
-               fin <- dim(temp)[2]
-               efic <- input$eficiencia/100
-               hrs <- input$horas.trabajo
-               familias <- max(as.numeric(temp$LINEA))
-               
-               #plantilla por linea por puesto
-               plantilla <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
-                    group_by(LINEA, PUESTO)%>%
-                    summarise("TIEMPO" = round(mean(TIEMPO),2))%>%
-                    merge(tb.porproduc, by = "LINEA")%>%
-                    mutate("PLANTILLA" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))%>%
-                    select(LINEA, PUESTO, PARES, PLANTILLA)
-               
-               tabla.renglon <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
-                    merge(plantilla, by = c("LINEA","PUESTO"))%>%
-                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)),
-                           "META" = ceiling(PLANTILLA/PERSONAS*100),
-                           "PARES.PRODUCCION" = ceiling(PARES*META/100))
-               
-               meta.estilo <- tabla.renglon%>%
+               eficiencia.por.estilo <- temp%>%
                     group_by(ESTILO)%>%
-                    summarise("PROD.RESTRICCION" = min(PARES.PRODUCCION))
-                    
-               result <- merge(tabla.renglon, meta.estilo, by = "ESTILO")%>%
-                    mutate("EFICIENCIA" =ceiling(PROD.RESTRICCION/PARES.PRODUCCION*100)) 
+                    summarise("DISPONIBLE" = sum(PLANTILLA),
+                              "UTILIZADO" = sum(APROVECHAMIENTO))%>%
+                    mutate("EFICIENCIA" = ceiling(UTILIZADO/DISPONIBLE*100),
+                           "NIVEL" = ifelse(EFICIENCIA > 85, "A-BUENO", ifelse(EFICIENCIA > 50, "B-REGULAR","C-CRITICO")))
                
-
-               return(result)
+               paleta <- c("darkgreen","gold2","red")
+               
+               ggplotly(
+                    ggplot(data = eficiencia.por.estilo, aes(ESTILO, EFICIENCIA, colour = NIVEL)) +
+                         geom_point() + 
+                         scale_color_manual(values = paleta)+ 
+                         expand_limits(y=c(0,100))
+                    
+               )
           })
-     
           
-          #personal por puesto
-          output$total_puesto <- renderTable({
-               temp <- reporte.final()
+          
+          #Analisis de personal - eficiencia por estilo (para graficar)
+          output$eficiencia.linea <- DT::renderDataTable({
+               temp <- eficiencia.funcion()
                if(is.null(temp)) return(NULL)
                
-               #si no hay pares por producir por linea no hace el calculo
-               if(nrow(tb.porproduc)==0) return(NULL)
+               eficiencia.por.linea <- temp%>%
+                    group_by(LINEA, ESTILO)%>%
+                    summarise("DISPONIBLE" = sum(PLANTILLA),
+                              "UTILIZADO" = sum(APROVECHAMIENTO))%>%
+                    mutate("TEMP" = ceiling(UTILIZADO/DISPONIBLE*100))%>%
+                    group_by(LINEA)%>%
+                    summarise("PROMEDIO" = ceiling(mean(TEMP)),
+                              "MEDIANA" = ceiling(quantile(TEMP, probs = 0.5)),
+                              "DESVIACION" = round(sd(TEMP),2))
                
+               DT::datatable(eficiencia.por.linea, options = list(pageLength = 10))
+          })
+          
+          #Analisis de personal - eficiencia por estilo (para graficar)
+          output$meta.linea <- DT::renderDataTable({
+               temp <- eficiencia.funcion()
+               if(is.null(temp)) return(NULL)
                
-               fin <- dim(temp)[2]
-               efic <- input$eficiencia/100
-               hrs <- input$horas.trabajo
-               familias <- max(as.numeric(temp$LINEA))
-               prs <- input$pares.hora/familias
+               meta.por.linea <- temp%>%
+                    group_by(LINEA)%>%
+                    summarise("PROMEDIO" = ceiling(mean(PROD.RESTRICCION)),
+                              "MEDIANA" = ceiling(quantile(PROD.RESTRICCION, probs = 0.5)),
+                              "DESVIACION" = round(sd(PROD.RESTRICCION),2),
+                              "PAR.PRESUP" = min(PARES))%>%
+                    mutate("CUMPLIMIENTO" = ceiling(PROMEDIO/PAR.PRESUP*100))%>%
+                    select(PROMEDIO, CUMPLIMIENTO, MEDIANA, DESVIACION)
                
-               tabla.puesto <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
-                    group_by(LINEA, PUESTO)%>%
-                    summarise("TIEMPO" = round(ifelse(input$personas, 
-                                                      mean((TIEMPO/1000)*(efic*hrs*3600)),
-                                                      mean(TIEMPO)),2))%>%
-                    merge(tb.porproduc, by = "LINEA")%>%
-                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))%>%
+               DT::datatable(meta.por.linea, options = list(pageLength = 10))
+          })
+
+          
+          #Analisis de personal - Imprime personas por funcion
+          output$total_puesto <- renderTable({
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
+               
+               result <- tabla.totales%>%
                     group_by(PUESTO)%>%
                     summarise("PERSONAS" = sum(PERSONAS))
                
           })
           
-          #personal total por puesto
+          #Analisis de personal - Imprime Total por linea de produccion
           output$Totales.por.linea <- renderTable({
-               temp <- reporte.final()
-               if(is.null(temp)) return(NULL)
-               #si no hay pares por producir por linea no hace el calculo
-               if(nrow(tb.porproduc)==0) return(NULL)
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
                
-               
-               fin <- dim(temp)[2]
-               efic <- input$eficiencia/100
-               hrs <- input$horas.trabajo
-               familias <- max(as.numeric(temp$LINEA))
-               prs <- input$pares.hora/familias
-               
-               totales.puesto <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
-                    group_by(LINEA, PUESTO)%>%
-                    summarise("TIEMPO" = round(ifelse(input$personas, 
-                                                      mean((TIEMPO/1000)*(efic*hrs*3600)),
-                                                      mean(TIEMPO)),2))%>%
-                    merge(tb.porproduc, by = "LINEA")%>%
-                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))%>%
+               tabla.renglon <- tabla.totales%>%
                     group_by(LINEA)%>%
-                    summarise("PERSONAS" = ceiling(sum(PERSONAS)))
+                    summarise("PERSONAS" = sum(PERSONAS))
+               
+               sueldo <- input$sueldo.prom
+               
+               #calcula produccion promedio real por la eficiencia de balanceo
+               efic <- eficiencia.funcion()
+               if(is.null(efic)) return(NULL)
+
+               prod.prom <- efic%>%
+                    group_by(LINEA)%>%
+                    summarise("PROD.REAL" = ceiling(mean(PROD.RESTRICCION)))
+               
+               
+               result <- merge(tabla.renglon, prod.prom, by = "LINEA")%>%
+                    mutate("COSTO.PAR" = round((sueldo*PERSONAS)/PROD.REAL,2))%>%
+                    select(LINEA, PERSONAS, COSTO.PAR)
+               
+               return(result)
                
           })
           
-          #gran total
+          #Analisis de personal - costo promedio de mano de obra
+          output$mo.promedio <- renderPrint({
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
+               
+               tabla.renglon <- tabla.totales%>%
+                    group_by(LINEA)%>%
+                    summarise("PERSONAS" = sum(PERSONAS))
+               
+               sueldo <- input$sueldo.prom
+               
+               #calcula produccion promedio real por la eficiencia de balanceo
+               efic <- eficiencia.funcion()
+               if(is.null(efic)) return(NULL)
+               
+               prod.prom <- efic%>%
+                    group_by(LINEA)%>%
+                    summarise("PROD.REAL" = ceiling(mean(PROD.RESTRICCION)))
+               
+               total.pares <- sum(prod.prom$PROD.REAL)
+
+               result <- merge(tabla.renglon, prod.prom, by = "LINEA")%>%
+                    mutate("COSTO.PAR" = round((sueldo*PERSONAS)/(PROD.REAL*5),2),
+                           "PRECIO.POND" = COSTO.PAR*PROD.REAL)
+               
+               
+               cat(round(sum(result$PRECIO.POND)/total.pares,2))
+               
+          })
+          #Analisis de personal - incremento en la facturacion por plantilla basica correcta
+          output$incr.fact.plantilla <- renderPrint({
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
+               
+               tabla.renglon <- tabla.totales%>%
+                    group_by(LINEA)%>%
+                    summarise("PERSONAS" = sum(PERSONAS))
+               
+               
+               #calcula produccion promedio real por la eficiencia de balanceo
+               efic <- eficiencia.funcion()
+               if(is.null(efic)) return(NULL)
+               
+               prod.prom <- efic%>%
+                    group_by(LINEA)%>%
+                    summarise("PROD.REAL" = ceiling(mean(PROD.RESTRICCION)))
+               
+               total.pares <- sum(prod.prom$PROD.REAL)
+               
+               cat(format(total.pares*5*input$precio.prom, decimal.mark=".",big.mark=",", small.mark=",", small.interval=3))
+               
+          })
+          #Analisis de personal - facturacion menos costo de mo
+          output$fact.mo <- renderPrint({
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
+               
+               tabla.renglon <- tabla.totales%>%
+                    group_by(LINEA)%>%
+                    summarise("PERSONAS" = sum(PERSONAS))
+               
+               costo.mo <- sum(tabla.renglon$PERSONAS)*input$sueldo.prom
+               
+               #calcula produccion promedio real por la eficiencia de balanceo
+               efic <- eficiencia.funcion()
+               if(is.null(efic)) return(NULL)
+               
+               prod.prom <- efic%>%
+                    group_by(LINEA)%>%
+                    summarise("PROD.REAL" = ceiling(mean(PROD.RESTRICCION)))
+               
+               total.pares <- sum(prod.prom$PROD.REAL)
+
+               cat(format(total.pares*5*input$precio.prom - costo.mo, decimal.mark=".",big.mark=",", small.mark=",", small.interval=3))
+               
+          })
+          
+          #Analisis de personal - facturacion menos costo de mo
+          output$total.mo <- renderPrint({
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
+               
+               tabla.renglon <- tabla.totales%>%
+                    group_by(LINEA)%>%
+                    summarise("PERSONAS" = sum(PERSONAS))
+               
+               costo.mo <- sum(tabla.renglon$PERSONAS)*input$sueldo.prom
+               
+               cat(format(costo.mo, decimal.mark=".",big.mark=",", small.mark=",", small.interval=3))
+               
+          })
+          
+          
+          #analisiS de personal - Gran total de personas en la plantilla
           output$grantotal <- renderPrint({
-               temp <- reporte.final()
-               if(is.null(temp)) return(NULL)
-               #si no hay pares por producir por linea no hace el calculo
-               if(nrow(tb.porproduc)==0) return(NULL)
+               tabla.totales <- calcular.plantilla()
+               if (is.null(tabla.totales)) return(NULL)
                
-               
-               fin <- dim(temp)[2]
-               efic <- input$eficiencia/100
-               hrs <- input$horas.trabajo
-               familias <- max(as.numeric(temp$LINEA))
-               prs <- input$pares.hora/familias
-               
-               tabla.totales <- gather(temp, "PUESTO","TIEMPO",c(3:fin))%>%
-                    group_by(LINEA, PUESTO)%>%
-                    summarise("TIEMPO" = round(ifelse(input$personas, 
-                                                      mean((TIEMPO/1000)*(efic*hrs*3600)),
-                                                      mean(TIEMPO)),2))%>%
-                    merge(tb.porproduc, by = "LINEA")%>%
-                    mutate("PERSONAS" = ceiling(TIEMPO*PARES/(efic*hrs*3600)))%>%
-                    summarise("PERSONAS" = ceiling(sum(PERSONAS)))
-               cat(sum(tabla.totales$PERSONAS))
+               cat(round(sum(tabla.totales$PERSONAS)))
           })
-     })
-     
-     output$grafico.final <- renderPlotly({
-          reporte <- reporte.final()
-          if(is.null(reporte)) {
-               return(NULL)
-          } else {
-               #crea tabla de 3 columnas ESTILO, PUESTO, TIEMPO
-               fin <- dim(reporte)[2]
-               tabla.renglon <- gather(reporte, "PUESTO","TIEMPO",c(3:fin))
-               
-               unidades <- ifelse(input$personas, "Personas", "Segundos")
-               
-               # grafico de desviaciones por puesto
-               ggplotly(
-                    ggplot(data = tabla.renglon, aes(ESTILO, TIEMPO, colour = LINEA)) + 
-                         geom_point() + 
-                         facet_grid(PUESTO~., as.table = F, scales = "free") +
-                         xlab("Estilos") +
-                         ylab(unidades)  +
-                         ggtitle("Dispersion de tiempo/personas para producir un par") +
-                         theme(axis.text=element_text(size=8))
-               )
-          } 
-          
-          
      })
      
      
