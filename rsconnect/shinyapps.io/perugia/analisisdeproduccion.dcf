@@ -1,0 +1,11 @@
+name: analisisdeproduccion
+title: analisisdeproduccion
+account: perugia
+server: shinyapps.io
+appId: 161026
+bundleId: 732930
+url: https://perugia.shinyapps.io/analisisdeproduccion/
+when: 1488560929.14839
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: ATIEMPOS-SKU.csv|CORTE Y PREPARA.csv|CORTE.csv|FAMILIA.csv|FORRADOS.csv|FUNCIONES_ESTILOS_HABILITADOS.csv|PLANTA.csv|PRONOS.csv|RAYADO Y RESACA.csv|script.R|SUELA.csv|tiempos-asignacion.csv|tiempos.R
