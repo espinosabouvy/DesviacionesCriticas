@@ -1,3 +1,4 @@
+#ANALISIS DE PRODUCCION
 
 library(shiny)
 library(plotly)
@@ -8,12 +9,6 @@ shinyUI(fluidPage(
      #titlePanel("Diagnostico, analisis y mejoras de lineas de produccion - PERUGIA"),
      sidebarLayout(
           sidebarPanel(
-               # #fijar el ancho del left sidebar
-               # tags$head(
-               # tags$style(type="text/css", "select { max-width: 140px; }"),
-               # tags$style(type="text/css", ".span4 { max-width: 190px; }"),
-               # tags$style(type="text/css", ".well { max-width: 300px; }")
-               # ),
                fileInput("browse", "Selecciona archivo CSV que obtienes de Tiempos/ Reportes/ Plantilla basica/
                          Estilos habilitados",
                          accept = c(
@@ -46,7 +41,7 @@ shinyUI(fluidPage(
                #    la suscripcion en Apps/Comprar aplicaciones o enviarnos un correo en la cuenta 
                #    luis@magro.com.mx para ayudarte"),
                h5("Si tienes alguna duda de como funciona esta app, puedes enviarnos un correo a 
-                  luis@magro.com.mx para ayudarte. Vrs-3.1"),
+                  luis@magro.com.mx para ayudarte. Vrs-3.2"),
                tabsetPanel(
                     tabPanel("Datos leidos",
                              DT::dataTableOutput("tabla_completa")),

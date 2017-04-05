@@ -1,3 +1,4 @@
+#ANALISIS DE PRODUCCION
 
 library(shiny)
 library(tidyr)
@@ -13,7 +14,7 @@ shinyServer(function(input, output, session) {
      tb.porproduc <- data.frame("Linea" = numeric(0), "Pares" = numeric(0))
      
      
-     #lectura inicial de datos y transformacin al formato requerido de estilo-puesto1-puesto2
+     #lectura inicial de datos y transformacion al formato requerido de estilo-puesto1-puesto2
      lectura.inicial <- reactive({
           require(dplyr)
           require(tidyr)
@@ -1153,7 +1154,7 @@ shinyServer(function(input, output, session) {
                
                
                result <- merge(tabla.renglon, prod.prom, by = "LINEA")%>%
-                    mutate("COSTO.PAR" = round((sueldo*PERSONAS)/PROD.REAL,2))%>%
+                    mutate("COSTO.PAR" = round((sueldo*PERSONAS)/(PROD.REAL*5),2))%>%
                     select(LINEA, PERSONAS, COSTO.PAR)
                
                return(result)

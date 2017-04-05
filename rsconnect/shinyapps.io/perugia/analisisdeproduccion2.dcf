@@ -3,9 +3,9 @@ title: analisisdeproduccion
 account: perugia
 server: shinyapps.io
 appId: 161099
-bundleId: 759810
+bundleId: 777812
 url: https://perugia.shinyapps.io/analisisdeproduccion2/
-when: 1490285420.05675
+when: 1491396604.51307
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .RData|ATIEMPOS-SKU.csv|CORTE Y PREPARA.csv|CORTE.csv|FAMILIA.csv|FORRADOS.csv|FUNCIONES DE LO PROGRAMADO.csv|FUNCIONES_ESTILOS_HABILITADOS.csv|PARA_PLANTILLA_BASICA.csv|PLANTA.csv|PRONOS.csv|RAYADO Y RESACA.csv|script.R|SUELA.csv|tiempos-asignacion.csv|tiempos.R
+ignoredFiles: .RData|actual.csv|ATIEMPOS-SKU.csv|cerrado-forros-rebajado.csv|cerrado-forros.csv|FUNCIONES DE LO PROGRAMADO.csv|FUNCIONES_ESTILOS_HABILITADOS.csv|JUNTO-FAMILIAS-PESPPREP.csv|PARA_PLANTILLA_BASICA.csv|script.R|tiempos-asignacion.csv|tiempos.R
