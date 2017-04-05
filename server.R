@@ -34,6 +34,7 @@ shinyServer(function(input, output, session) {
           
           #limpiar el formato, actual (LINEA, VCESTIL, PARES, FAMPESP, FAMMONT, DEPTO, FUNCION, TIEMPO,
           #PERSONAS, META)
+
           deptos.usar <- c("CORTE","CORTE Y PREPARA", "ENSAMBLES", "FAMILIA", "FORRADOS", 
                            "PLANTA", "RAYADO Y RESACA",
                            "SUELA")
@@ -100,8 +101,9 @@ shinyServer(function(input, output, session) {
                return(NULL)
           }
           
- 
+
           #llenar combo de departamentos con el archivo preparado
+
           output$depto.select <- renderUI({
                deptos <- unique(tiempos$DEPTO)
                selectInput("depto.selected", "Selecciona el departamento que quieres analizar", as.list(deptos))
@@ -222,8 +224,7 @@ shinyServer(function(input, output, session) {
           #completar con cero las funciones que existen en cada depto y el estilo no las tiene
           #primero se debe agregar todos los estilos a todas los deptos
           estilos.fam <- unique(datos[datos$DEPTO == "FAMILIA",2:3])
-          #estilos.fam <<- unique(datos[datos$DEPTO == "FAMILIA",2:3])
-          
+
           #verificar que esa linea tenga ese departamento
           if (nrow(datos[datos$DEPTO== input$depto.selected,]) == 0) return(NULL)
           

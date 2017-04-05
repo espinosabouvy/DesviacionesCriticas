@@ -70,7 +70,9 @@ preparar <- function(exportar = FALSE){
      #completar con cero las funciones que existen en cada depto y el estilo no las tiene
      #primero se debe agregar todos los estilos a todas los deptos
      
-     estilos.fam <<- unique(tiempos[tiempos$DEPTO == "FAMILIA",2:3])
+     estilos.fam <<- unique(tiempos[tiempos$DEPTO == "FAMILIA",2:3])%>%
+          mutate("NUEVO" = paste0("SKU-", n()))%>%
+          select("ESTILO" = NUEVO, FAMPESP)
      
      #hacer esto cuando se seleccione el depto
      for(i in unique(tiempos$DEPTO)){
